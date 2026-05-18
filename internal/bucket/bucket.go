@@ -1,4 +1,3 @@
-// Package bucket implements a token bucket rate limiter.
 package bucket
 
 import (

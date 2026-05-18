@@ -69,12 +69,14 @@ func (r *RedisStore) Ping(ctx context.Context) error {
 
 // Take executes the Lua script in Redis to consume a token.
 func (r *RedisStore) Take(ctx context.Context, ip string, capacity int, refillRate int, refillInterval time.Duration) (Result, error) {
-	// Ensure the Lua script is loaded into Redis only once.
+	// sync.Once ensures the Lua script is loaded into Redis only once.
+	// Redis returns a SHA1 hash which is cached for future EvalSha calls.
 	r.once.Do(func() {
 		r.sha, _ = r.client.ScriptLoad(ctx, luaScript).Result()
 	})
 
-	// Execute the cached script using its SHA.
+	// EvalSha executes the cached Lua script using its SHA hash
+	// instead of sending the entire script every request.
 	res, err := r.client.EvalSha(ctx, r.sha, []string{ip}, capacity, refillRate, refillInterval.Milliseconds(), time.Now().UnixMilli()).Int64Slice()
 	if err != nil {
 		return Result{Allowed: false}, err
